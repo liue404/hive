@@ -22,6 +22,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Comparator;
+import java.util.Collections;
 
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
@@ -59,6 +61,14 @@ public class TestThriftObjectInspectors {
       StructObjectInspector soi = (StructObjectInspector) oi1;
       List<? extends StructField> fields = soi.getAllStructFieldRefs();
       assertEquals(10, fields.size());
+      Comparator<StructField> comparator = new Comparator<StructField>() {
+        @Override
+        public int compare(StructField field1, StructField field2) {
+            return field1.getFieldName().compareTo(field2.getFieldName());
+        }
+      };
+      // The fields is not guaranted to be ordered, so sort it by dictionary order
+      Collections.sort((List<? extends StructField>) fields, comparator);
       assertEquals(fields.get(0), soi.getStructFieldRef("aint"));
 
       // null
@@ -86,17 +96,17 @@ public class TestThriftObjectInspectors {
       c.setUnionField1(null);
       c.setUnionField2(null);
       c.setUnionField3(null);
-
+      // since the the fields is sorted, the order test should be changed
       assertEquals(1, soi.getStructFieldData(c, fields.get(0)));
       assertEquals("test", soi.getStructFieldData(c, fields.get(1)));
-      assertEquals(c2, soi.getStructFieldData(c, fields.get(2)));
-      assertEquals(c3, soi.getStructFieldData(c, fields.get(3)));
+      assertNull(soi.getStructFieldData(c, fields.get(2)));
+      assertEquals(c2, soi.getStructFieldData(c, fields.get(3)));
       assertEquals(c4, soi.getStructFieldData(c, fields.get(4)));
-      assertNull(soi.getStructFieldData(c, fields.get(5)));
+      assertEquals(c3, soi.getStructFieldData(c, fields.get(5)));
       assertNull(soi.getStructFieldData(c, fields.get(6)));
       assertNull(soi.getStructFieldData(c, fields.get(7)));
       assertNull(soi.getStructFieldData(c, fields.get(8)));
-      assertNull(soi.getStructFieldData(c, fields.get(9)));
+      assertNull(soi.getStructFieldData(c, fields.get(9))); 
 
       ArrayList<Object> cfields = new ArrayList<Object>();
       for (int i = 0; i < 10; i++) {
@@ -105,6 +115,7 @@ public class TestThriftObjectInspectors {
       assertEquals(cfields, soi.getStructFieldsDataAsList(c));
 
       // sub fields
+      // change here since the fields order change
       assertEquals(PrimitiveObjectInspectorFactory.javaIntObjectInspector,
           fields.get(0).getFieldObjectInspector());
       assertEquals(PrimitiveObjectInspectorFactory.javaStringObjectInspector,
@@ -112,12 +123,12 @@ public class TestThriftObjectInspectors {
       assertEquals(
           ObjectInspectorFactory
           .getStandardListObjectInspector(PrimitiveObjectInspectorFactory.javaIntObjectInspector),
-          fields.get(2).getFieldObjectInspector());
+          fields.get(3).getFieldObjectInspector());
       assertEquals(
           ObjectInspectorFactory
               .getStandardListObjectInspector(PrimitiveObjectInspectorFactory
                   .javaStringObjectInspector),
-          fields.get(3).getFieldObjectInspector());
+          fields.get(5).getFieldObjectInspector());
       assertEquals(ObjectInspectorFactory
           .getStandardListObjectInspector(ObjectInspectorFactory
           .getReflectionObjectInspector(IntString.class,
@@ -126,7 +137,7 @@ public class TestThriftObjectInspectors {
       assertEquals(ObjectInspectorFactory.getStandardMapObjectInspector(
           PrimitiveObjectInspectorFactory.javaStringObjectInspector,
           PrimitiveObjectInspectorFactory.javaStringObjectInspector), fields
-          .get(5).getFieldObjectInspector());
+          .get(6).getFieldObjectInspector());
     } catch (Throwable e) {
       e.printStackTrace();
       throw e;
